@@ -98,38 +98,46 @@ app.post('/connect', async (req, res) => {
     try {
         browser = await puppeteer.launch({
             headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-blink-features=AutomationControlled',
+                '--window-size=1280,800'
+            ]
         }); 
         const page = await browser.newPage();
         
-        // خداع المنصة بأننا متصفح موبايل حقيقي تماماً لتجاوز الحماية
-        await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1');
+        // إخفاء الـ WebDriver تماماً وتغيير البصمة
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        });
+
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         
-        await page.goto('https://me-portal.qureo.education', { waitUntil: 'networkidle2', timeout: 30000 });
+        // الدخول مع زيادة وقت الانتظار لـ 30 ثانية
+        await page.goto('https://me-portal.qureo.education', { waitUntil: 'domcontentloaded', timeout: 30000 });
         
-        // انتظار تحميل خانات الإدخال بسلام
-        await page.waitForSelector('input', { timeout: 15000 });
+        // الانتظار حتى تظهر الحقول بسلام
+        await page.waitForSelector('input', { timeout: 20000 });
         
-        // كتابة البيانات
         const inputs = await page.$$('input');
         if (inputs.length >= 2) {
-            await inputs[0].type(studentId);
-            await inputs[1].type(password);
+            await inputs[0].type(studentId, { delay: 100 });
+            await inputs[1].type(password, { delay: 100 });
         } else {
-            throw new Error('لم يتم العثور على خانات الإدخال في الصفحة');
+            throw new Error('لم يتم العثور على حقول الإدخال');
         }
         
-        // الضغط على زر تسجيل الدخول
         await page.click('button[type="submit"]');
-        
-        // الانتظار قليلاً للتأكد من تسجيل الدخول
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, 6000));
 
         await browser.close();
         res.json({ success: true, data: [] });
     } catch (error) {
         if (browser) await browser.close();
-        res.json({ success: false, error: 'خطأ: ' + error.message });
+        res.json({ success: false, error: 'خطأ الحماية أو الاتصال: ' + error.message });
     }
 });
 
