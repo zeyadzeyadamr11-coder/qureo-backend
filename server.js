@@ -97,7 +97,10 @@ app.post('/connect', async (req, res) => {
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
         }); 
         const page = await browser.newPage();
-        await page.goto('https://www.qureo.jp/login', { waitUntil: 'networkidle2' });
+        
+        // تم تحديث الرابط هنا للرابط الصحيح اللي ظهر في صورك
+        await page.goto('https://me-portal.qureo.education', { waitUntil: 'networkidle2' });
+        
         await page.type('#student-id', studentId);
         await page.type('#password', password);
         await page.click('#login-button');
