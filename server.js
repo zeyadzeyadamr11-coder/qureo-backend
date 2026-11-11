@@ -27,7 +27,7 @@ app.get('/', (req, res) => {
             input:focus { border-color: #3a7bd5; box-shadow: 0 0 8px rgba(58, 123, 213, 0.4); }
             button { width: 100%; padding: 14px; background: linear-gradient(90deg, #3a7bd5, #00d2ff); border: none; border-radius: 10px; color: white; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
             button:hover { opacity: 0.9; transform: translateY(-2px); }
-            #status { margin-top: 15px; text-align: center; font-size: 14px; color: #00ffcc; }
+            #status { margin-top: 15px; text-align: center; font-size: 14px; color: #00ffcc; font-weight: bold; }
         </style>
     </head>
     <body>
@@ -41,7 +41,7 @@ app.get('/', (req, res) => {
             <h3 style="margin-bottom: 20px;">بيانات الطالب</h3>
             <form id="solveForm">
                 <div class="input-group">
-                    <label>اسم المستخدم (Student ID)</label>
+                    <label>اسم المستخدم (Login ID)</label>
                     <input type="text" id="studentId" placeholder="أدخل الـ ID الخاص بك" required>
                 </div>
                 <div class="input-group">
@@ -58,7 +58,8 @@ app.get('/', (req, res) => {
                 const btn = document.getElementById('btn');
                 const status = document.getElementById('status');
                 btn.disabled = true;
-                btn.innerText = 'جاري الاتصال والحل... ⏳';
+                btn.innerText = 'جاري التحقق والحل... ⏳';
+                status.style.color = '#00ffcc';
                 status.innerText = 'شغال بيحل المنصة دلوقتي، استنى ثواني...';
                 try {
                     const res = await fetch('/connect', {
@@ -71,11 +72,14 @@ app.get('/', (req, res) => {
                     });
                     const data = await res.json();
                     if(data.success) {
+                        status.style.color = '#00ffcc';
                         status.innerText = '✅ تم الحل بنجاح يا زيزو!';
                     } else {
-                        status.innerText = '❌ حدث خطأ: ' + (data.error || 'تأكد من البيانات');
+                        status.style.color = '#ff416c';
+                        status.innerText = '❌ ' + data.error;
                     }
                 } catch(err) {
+                    status.style.color = '#ff416c';
                     status.innerText = '❌ تعذر الاتصال بالسيرفر!';
                 } finally {
                     btn.disabled = false;
@@ -98,13 +102,21 @@ app.post('/connect', async (req, res) => {
         }); 
         const page = await browser.newPage();
         
-        // تم تحديث الرابط هنا للرابط الصحيح اللي ظهر في صورك
         await page.goto('https://me-portal.qureo.education', { waitUntil: 'networkidle2' });
         
-        await page.type('#student-id', studentId);
-        await page.type('#password', password);
-        await page.click('#login-button');
-        await page.waitForNavigation({ waitUntil: 'networkidle2' });
+        await page.waitForSelector('input[type="text"]', { timeout: 10000 });
+        await page.type('input[type="text"]', studentId);
+        await page.type('input[type="password"]', password);
+        await page.click('button[type="submit"]');
+        
+        // الانتظار للتأكد من نجاح الدخول أو فشله
+        try {
+            await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 });
+        } catch (navError) {
+            // لو الصفحة متحركتش، معناه إن بيانات الدخول غلط والموقع رفض يسجل دخول
+            await browser.close();
+            return res.json({ success: false, error: 'المعلومات خطأ، تأكد من الـ ID أو كلمة السر!' });
+        }
 
         const lessons = await page.evaluate(() => {
             const items = document.querySelectorAll('.lesson-card');
@@ -118,7 +130,8 @@ app.post('/connect', async (req, res) => {
         res.json({ success: true, data: lessons });
     } catch (error) {
         if (browser) await browser.close();
-        res.status(500).json({ success: false, error: error.message });
+        // رسالة مخصصة لخطأ البيانات أو فشل العثور على الحقول
+        res.json({ success: false, error: 'المعلومات خطأ أو حدث خطأ أثناء تسجيل الدخول!' });
     }
 });
 
