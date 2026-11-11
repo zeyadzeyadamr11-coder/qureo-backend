@@ -103,41 +103,53 @@ app.post('/connect', async (req, res) => {
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
-                '--disable-blink-features=AutomationControlled',
-                '--window-size=1280,800'
+                '--disable-blink-features=AutomationControlled'
             ]
         }); 
         const page = await browser.newPage();
-        
-        // إخفاء الـ WebDriver تماماً وتغيير البصمة
-        await page.evaluateOnNewDocument(() => {
-            Object.defineProperty(navigator, 'webdriver', { get: () => false });
-        });
-
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         
-        // الدخول مع زيادة وقت الانتظار لـ 30 ثانية
+        // فتح البوابة الرئيسية
         await page.goto('https://me-portal.qureo.education', { waitUntil: 'domcontentloaded', timeout: 30000 });
         
-        // الانتظار حتى تظهر الحقول بسلام
-        await page.waitForSelector('input', { timeout: 20000 });
+        // محاولة البحث عن زر أو رابط تسجيل الدخول والنقر عليه إن وجد، أو الانتظار للحقول مباشرة
+        try {
+            await page.waitForSelector('input', { timeout: 5000 });
+        } catch (e) {
+            // لو ملقاش الحقول فوراً، هيدور على أي زرار أو رابط يوصلنا للوogin ويضغط عليه
+            const loginLink = await page.$('a, button');
+            if (loginLink) {
+                await loginLink.click();
+                await new Promise(r => setTimeout(r, 3000));
+            }
+        }
+        
+        // انتظار ظهور حقول الكتابة بنجاح
+        await page.waitForSelector('input', { timeout: 15000 });
         
         const inputs = await page.$$('input');
         if (inputs.length >= 2) {
-            await inputs[0].type(studentId, { delay: 100 });
-            await inputs[1].type(password, { delay: 100 });
+            await inputs[0].type(studentId, { delay: 50 });
+            await inputs[1].type(password, { delay: 50 });
         } else {
-            throw new Error('لم يتم العثور على حقول الإدخال');
+            throw new Error('لم يتم العثور على حقول الإدخال المطلوبة');
         }
         
-        await page.click('button[type="submit"]');
+        // الضغط على زر تسجيل الدخول
+        const submitBtn = await page.$('button[type="submit"], input[type="submit"]');
+        if (submitBtn) {
+            await submitBtn.click();
+        } else {
+            await page.keyboard.press('Enter');
+        }
+        
         await new Promise(r => setTimeout(r, 6000));
 
         await browser.close();
         res.json({ success: true, data: [] });
     } catch (error) {
         if (browser) await browser.close();
-        res.json({ success: false, error: 'خطأ الحماية أو الاتصال: ' + error.message });
+        res.json({ success: false, error: 'خطأ: ' + error.message });
     }
 });
 
