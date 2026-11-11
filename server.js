@@ -109,22 +109,10 @@ app.post('/connect', async (req, res) => {
         const page = await browser.newPage();
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         
-        // فتح البوابة الرئيسية
-        await page.goto('https://me-portal.qureo.education', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        // التوجيه المباشر على رابط تسجيل الدخول الذي جلبته
+        await page.goto('https://me-portal.qureo.education/login', { waitUntil: 'domcontentloaded', timeout: 30000 });
         
-        // محاولة البحث عن زر أو رابط تسجيل الدخول والنقر عليه إن وجد، أو الانتظار للحقول مباشرة
-        try {
-            await page.waitForSelector('input', { timeout: 5000 });
-        } catch (e) {
-            // لو ملقاش الحقول فوراً، هيدور على أي زرار أو رابط يوصلنا للوogin ويضغط عليه
-            const loginLink = await page.$('a, button');
-            if (loginLink) {
-                await loginLink.click();
-                await new Promise(r => setTimeout(r, 3000));
-            }
-        }
-        
-        // انتظار ظهور حقول الكتابة بنجاح
+        // الانتظار المباشر لحقول الإدخال (لأننا في صفحة الدخول فوراً)
         await page.waitForSelector('input', { timeout: 15000 });
         
         const inputs = await page.$$('input');
@@ -132,7 +120,7 @@ app.post('/connect', async (req, res) => {
             await inputs[0].type(studentId, { delay: 50 });
             await inputs[1].type(password, { delay: 50 });
         } else {
-            throw new Error('لم يتم العثور على حقول الإدخال المطلوبة');
+            throw new Error('لم يتم العثور على حقول الإدخال');
         }
         
         // الضغط على زر تسجيل الدخول
