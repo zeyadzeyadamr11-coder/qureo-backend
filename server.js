@@ -104,20 +104,23 @@ app.post('/connect', async (req, res) => {
         
         await page.goto('https://me-portal.qureo.education', { waitUntil: 'networkidle2' });
         
+        // كتابة الـ ID والباسورد في الخانات
         await page.waitForSelector('input[type="text"]', { timeout: 10000 });
         await page.type('input[type="text"]', studentId);
         await page.type('input[type="password"]', password);
+        
+        // الضغط على زر الدخول
         await page.click('button[type="submit"]');
         
-        // الانتظار للتأكد من نجاح الدخول أو فشله
+        // التحقق الذكي: الانتظار حتى يتغير الرابط ويخرج من صفحة الدخول بنجاح
         try {
-            await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 });
+            await page.waitForFunction(() => !window.location.href.includes('login'), { timeout: 12000 });
         } catch (navError) {
-            // لو الصفحة متحركتش، معناه إن بيانات الدخول غلط والموقع رفض يسجل دخول
             await browser.close();
-            return res.json({ success: false, error: 'المعلومات خطأ، تأكد من الـ ID أو كلمة السر!' });
+            return res.json({ success: false, error: 'المعلومات خطأ أو لم يتم تسجيل الدخول!' });
         }
 
+        // جلب الفصول والحل
         const lessons = await page.evaluate(() => {
             const items = document.querySelectorAll('.lesson-card');
             return Array.from(items).map(item => ({
@@ -130,8 +133,7 @@ app.post('/connect', async (req, res) => {
         res.json({ success: true, data: lessons });
     } catch (error) {
         if (browser) await browser.close();
-        // رسالة مخصصة لخطأ البيانات أو فشل العثور على الحقول
-        res.json({ success: false, error: 'المعلومات خطأ أو حدث خطأ أثناء تسجيل الدخول!' });
+        res.json({ success: false, error: 'حدث خطأ أثناء الاتصال بالمنصة!' });
     }
 });
 
