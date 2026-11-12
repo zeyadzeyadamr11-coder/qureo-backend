@@ -195,7 +195,7 @@ app.post('/connect', async (req, res) => {
         
         try {
             await page.waitForFunction(() => !window.location.href.includes('login'), { timeout: 8000 });
-        } باسم (e) {
+        } catch (err) {
             await browser.close();
             return res.json({ success: false, error: 'المعلومات خطأ، تأكد من الـ ID أو كلمة السر!' });
         }
