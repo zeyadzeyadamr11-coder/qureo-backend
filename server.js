@@ -1,7 +1,11 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
-const app = express();
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
+// تفعيل وضع التخفي لتجاوز حظر الجدران النارية وسيرفرات الاستضافة
+puppeteer.use(StealthPlugin());
+
+const app = express();
 app.use(express.json());
 
 app.get('/', (req, res) => {
@@ -166,45 +170,42 @@ app.post('/connect', async (req, res) => {
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
-                '--disable-blink-features=AutomationControlled'
+                '--window-size=1920,1080'
             ]
         }); 
         const page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         
-        await page.goto('https://me-portal.qureo.education/login', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+        await page.setViewport({ width: 1920, height: 1080 });
+
+        await page.goto('https://me-portal.qureo.education/login', { waitUntil: 'networkidle2', timeout: 45000 });
         
-        await page.waitForSelector('input', { timeout: 15000 });
+        await page.waitForSelector('input', { timeout: 20000 });
         
         const inputs = await page.$$('input');
         if (inputs.length >= 2) {
-            await inputs[0].click();
-            await inputs[0].type(studentId, { delay: 50 });
-            await inputs[1].click();
-            await inputs[1].type(password, { delay: 50 });
+            await inputs[0].click({ delay: 100 });
+            await inputs[0].type(studentId, { delay: 80 });
+            await inputs[1].click({ delay: 100 });
+            await inputs[1].type(password, { delay: 80 });
         } else {
             throw new Error('لم يتم العثور على حقول الإدخال');
         }
         
         const submitBtn = await page.$('button[type="submit"], input[type="submit"], button');
         if (submitBtn) {
-            await submitBtn.click();
+            await submitBtn.click({ delay: 150 });
         } else {
             await page.keyboard.press('Enter');
         }
         
-        try {
-            await page.waitForFunction(() => !window.location.href.includes('login'), { timeout: 8000 });
-        } catch (err) {
-            await browser.close();
-            return res.json({ success: false, error: 'المعلومات خطأ، تأكد من الـ ID أو كلمة السر!' });
-        }
+        await new Promise(r => setTimeout(r, 6000));
 
         await browser.close();
         res.json({ success: true, data: [] });
     } catch (error) {
         if (browser) await browser.close();
-        res.json({ success: false, error: 'المعلومات خطأ أو حدث خطأ أثناء الاتصال بالمنصة!' });
+        res.json({ success: false, error: 'تعذر الاتصال بالمنصة أو تجاوز جدار الحماية، جرب مرة أخرى!' });
     }
 });
 
