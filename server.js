@@ -136,7 +136,7 @@ app.get('/', (req, res) => {
                     const data = await res.json();
                     if(data.success) {
                         status.style.color = '#00ffcc';
-                        status.innerText = '✅ تم الحل بنجاح يا فنان!';
+                        status.innerText = '✅ تم الحل بنجاح يا زيزو!';
                     } else {
                         status.style.color = '#ff416c';
                         status.innerText = '❌ ' + data.error;
@@ -178,20 +178,27 @@ app.post('/connect', async (req, res) => {
         
         const inputs = await page.$$('input');
         if (inputs.length >= 2) {
+            await inputs[0].click();
             await inputs[0].type(studentId, { delay: 50 });
+            await inputs[1].click();
             await inputs[1].type(password, { delay: 50 });
         } else {
             throw new Error('لم يتم العثور على حقول الإدخال');
         }
         
-        const submitBtn = await page.$('button[type="submit"], input[type="submit"]');
+        const submitBtn = await page.$('button[type="submit"], input[type="submit"], button');
         if (submitBtn) {
             await submitBtn.click();
         } else {
             await page.keyboard.press('Enter');
         }
         
-        await new Promise(r => setTimeout(r, 6000));
+        try {
+            await page.waitForFunction(() => !window.location.href.includes('login'), { timeout: 8000 });
+        } باسم (e) {
+            await browser.close();
+            return res.json({ success: false, error: 'المعلومات خطأ، تأكد من الـ ID أو كلمة السر!' });
+        }
 
         await browser.close();
         res.json({ success: true, data: [] });
